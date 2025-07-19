@@ -4,7 +4,6 @@ from django.core.files.storage import FileSystemStorage
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from django.core import signing
-from django.urls import reverse
 from .models import UploadedImage
 from .utils import compress_image
 import os
@@ -13,8 +12,10 @@ import uuid
 @csrf_exempt
 def upload_view(request):
     if request.method == 'GET':
-        return render(request, 'upload.html') 
-        
+        # Ambil semua gambar yang pernah diupload untuk ditampilkan
+        images = UploadedImage.objects.all().order_by('-created_at')
+        return render(request, 'upload.html', {'images': images})
+    
     if request.method == 'POST' and request.FILES.get('image'):
         image = request.FILES['image']
         
@@ -61,6 +62,7 @@ def upload_view(request):
         
         return JsonResponse({
             'success': True,
+            'id': uploaded_image.id,
             'original_name': original_name,
             'original_size': image.size,
             'compressed_size': compressed_image.size,
@@ -68,7 +70,7 @@ def upload_view(request):
             'signed_compressed': signed_compressed
         })
     
-    return render(request, 'upload.html')
+    return JsonResponse({'error': 'Permintaan tidak valid'}, status=400)
 
 def serve_signed_image(request, signed_data):
     try:

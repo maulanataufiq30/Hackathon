@@ -3,24 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Upload Gambar dengan Django</title>
+    <title>Upload & Kompres Gambar</title>
     <style>
         * {
             box-sizing: border-box;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         body {
-            max-width: 800px;
+            max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
             background-color: #f8f9fa;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 30px;
         }
         .upload-container {
             background-color: white;
             border-radius: 10px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
             padding: 30px;
-            margin-top: 30px;
+            margin-bottom: 40px;
         }
         .upload-area {
             border: 3px dashed #3498db;
@@ -57,20 +61,27 @@
         .result-container {
             display: none;
             margin-top: 30px;
-        }
-        .thumbnail {
-            border: 1px solid #dee2e6;
-            border-radius: 5px;
-            padding: 10px;
             background: white;
-            text-align: center;
-            margin-bottom: 20px;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
-        .thumbnail img {
-            max-width: 150px;
+        .comparison-container {
+            display: flex;
+            gap: 30px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+        .image-box {
+            flex: 1;
+            min-width: 300px;
+            text-align: center;
+        }
+        .image-box img {
+            max-width: 100%;
             height: auto;
-            display: block;
-            margin: 0 auto 10px;
+            border-radius: 8px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.15);
         }
         .metadata {
             background-color: #f8f9fa;
@@ -87,13 +98,72 @@
             border-radius: 4px;
             cursor: pointer;
             text-decoration: none;
+            margin-right: 10px;
+            transition: background 0.3s;
+        }
+        .btn:hover {
+            background: #2980b9;
+        }
+        .gallery {
+            margin-top: 40px;
+        }
+        .gallery h2 {
+            text-align: center;
+            margin-bottom: 25px;
+            color: #2c3e50;
+        }
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        .gallery-item {
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+        .gallery-item:hover {
+            transform: translateY(-5px);
+        }
+        .gallery-images {
+            display: flex;
+            height: 200px;
+        }
+        .gallery-original, .gallery-compressed {
+            flex: 1;
+            overflow: hidden;
+        }
+        .gallery-original img, .gallery-compressed img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s;
+        }
+        .gallery-item:hover img {
+            transform: scale(1.05);
+        }
+        .gallery-info {
+            padding: 15px;
+        }
+        .gallery-info p {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        .info-label {
+            font-weight: bold;
+            color: #3498db;
         }
     </style>
 </head>
 <body>
+    <header>
+        <h1>Upload & Kompres Gambar</h1>
+        <p>Unggah gambar dan lihat hasil kompresi menjadi 150px</p>
+    </header>
+    
     <div class="upload-container">
-        <h1>Upload Gambar dengan Django</h1>
-        
         <div class="upload-area" id="uploadArea">
             <div class="upload-icon">📁</div>
             <h3>Drag & Drop Gambar Disini</h3>
@@ -108,9 +178,16 @@
         
         <div class="result-container" id="resultContainer">
             <h2>Hasil Upload</h2>
-            <div class="thumbnail">
-                <img id="compressedImage" src="" alt="Thumbnail">
-                <p>Thumbnail 150px</p>
+            
+            <div class="comparison-container">
+                <div class="image-box">
+                    <h3>Gambar Asli</h3>
+                    <img id="originalImage" src="" alt="Original Image">
+                </div>
+                <div class="image-box">
+                    <h3>Thumbnail 150px</h3>
+                    <img id="compressedImage" src="" alt="Compressed Image">
+                </div>
             </div>
             
             <div class="metadata">
@@ -125,6 +202,32 @@
             </div>
         </div>
     </div>
+    
+    <div class="gallery">
+        <h2>Galeri Gambar</h2>
+        <div class="gallery-grid" id="galleryGrid">
+            {% for image in images %}
+            <div class="gallery-item">
+                <div class="gallery-images">
+                    <div class="gallery-original">
+                        <img src="{{ image.original_url }}" alt="Original">
+                    </div>
+                    <div class="gallery-compressed">
+                        <img src="{{ image.compressed_url }}" alt="Compressed">
+                    </div>
+                </div>
+                <div class="gallery-info">
+                    <p><span class="info-label">Nama:</span> {{ image.original_name|truncatechars:20 }}</p>
+                    <p><span class="info-label">Asli:</span> {{ image.original_size_kb }} KB</p>
+                    <p><span class="info-label">Kompresi:</span> {{ image.compressed_size_kb }} KB</p>
+                    <p><span class="info-label">Pengurangan:</span> {{ image.reduction_percentage }}%</p>
+                </div>
+            </div>
+            {% empty %}
+            <p style="grid-column: 1 / -1; text-align: center;">Belum ada gambar yang diupload</p>
+            {% endfor %}
+        </div>
+    </div>
 
     <script>
         // Elemen DOM
@@ -133,6 +236,7 @@
         const progressContainer = document.getElementById('progressContainer');
         const progressBar = document.getElementById('progressBar');
         const resultContainer = document.getElementById('resultContainer');
+        const originalImage = document.getElementById('originalImage');
         const compressedImage = document.getElementById('compressedImage');
         const fileName = document.getElementById('fileName');
         const originalSize = document.getElementById('originalSize');
@@ -140,6 +244,7 @@
         const reduction = document.getElementById('reduction');
         const originalLink = document.getElementById('originalLink');
         const compressedLink = document.getElementById('compressedLink');
+        const galleryGrid = document.getElementById('galleryGrid');
 
         // Event untuk drag and drop
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -232,6 +337,8 @@
                     if (response.success) {
                         // Tampilkan hasil
                         showResult(response);
+                        // Refresh gallery setelah upload sukses
+                        location.reload();
                     } else {
                         alert('Upload gagal: ' + (response.error || 'Unknown error'));
                     }
@@ -261,20 +368,22 @@
             reduction.textContent = reductionPercent;
             
             // Dapatkan URL gambar melalui signed URL
-            fetch(`/image/${data.signed_compressed}/`)
-                .then(response => response.json())
-                .then(imgData => {
-                    compressedImage.src = imgData.url;
-                    resultContainer.style.display = 'block';
-                    
-                    // Set link download
-                    fetch(`/image/${data.signed_original}/`)
-                        .then(response => response.json())
-                        .then(origData => {
-                            originalLink.href = origData.url;
-                            compressedLink.href = imgData.url;
-                        });
-                });
+            Promise.all([
+                fetch(`/image/${data.signed_original}/`).then(res => res.json()),
+                fetch(`/image/${data.signed_compressed}/`).then(res => res.json())
+            ]).then(([origData, compData]) => {
+                // Set gambar asli
+                originalImage.src = origData.url;
+                // Set gambar kompresi
+                compressedImage.src = compData.url;
+                
+                // Tampilkan result container
+                resultContainer.style.display = 'block';
+                
+                // Set link download
+                originalLink.href = origData.url;
+                compressedLink.href = compData.url;
+            });
         }
         
         // Fungsi untuk mendapatkan CSRF token

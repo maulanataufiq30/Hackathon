@@ -26,3 +26,16 @@ class UploadedImage(models.Model):
             if os.path.exists(compressed_path):
                 os.remove(compressed_path)
         super().delete(*args, **kwargs)
+    
+    # Property untuk tampilan ukuran yang lebih ramah
+    @property
+    def original_size_kb(self):
+        return round(self.original_size / 1024, 2)
+    
+    @property
+    def compressed_size_kb(self):
+        return round(self.compressed_size / 1024, 2)
+    
+    @property
+    def reduction_percentage(self):
+        return round((1 - self.compressed_size / self.original_size) * 100, 2)

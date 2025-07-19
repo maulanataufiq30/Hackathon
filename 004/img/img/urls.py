@@ -18,13 +18,13 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from imgs.views import upload_view  
+from imgs.views import upload_view,  serve_signed_image
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('upload/', upload_view, name='upload'),  # Langsung definisikan di sini
-    path('image/<str:signed_data>/', include('imgs.urls')),  # Pindahkan ke sini
-    path('', upload_view, name='home'),  # Tambahkan root path
+    path('upload/', upload_view, name='upload'),
+    path('image/<str:signed_data>/', serve_signed_image, name='signed_image'),
+    path('', upload_view, name='home'),
 ]
 
 if settings.DEBUG:
