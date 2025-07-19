@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Gambar dengan Django</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        .upload-container {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            padding: 30px;
+            margin-top: 30px;
+        }
+        .upload-area {
+            border: 3px dashed #3498db;
+            border-radius: 10px;
+            padding: 40px 20px;
+            text-align: center;
+            background-color: #f1f9ff;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .upload-area:hover, .upload-area.dragover {
+            background-color: #e3f2fd;
+            border-color: #2980b9;
+        }
+        .upload-icon {
+            font-size: 50px;
+            color: #3498db;
+            margin-bottom: 15px;
+        }
+        .progress-container {
+            height: 20px;
+            background-color: #e9ecef;
+            border-radius: 10px;
+            margin: 25px 0;
+            overflow: hidden;
+            display: none;
+        }
+        .progress-bar {
+            height: 100%;
+            background-color: #28a745;
+            width: 0%;
+            transition: width 0.4s;
+        }
+        .result-container {
+            display: none;
+            margin-top: 30px;
+        }
+        .thumbnail {
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+            background: white;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .thumbnail img {
+            max-width: 150px;
+            height: auto;
+            display: block;
+            margin: 0 auto 10px;
+        }
+        .metadata {
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            padding: 15px;
+            font-family: monospace;
+        }
+        .btn {
+            display: inline-block;
+            padding: 8px 16px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="upload-container">
+        <h1>Upload Gambar dengan Django</h1>
+        
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📁</div>
+            <h3>Drag & Drop Gambar Disini</h3>
+            <p>Atau <strong>klik untuk memilih file</strong></p>
+            <p>Format: JPG, PNG, GIF | Maks: 5MB</p>
+            <input type="file" id="fileInput" accept="image/*" hidden>
+        </div>
+        
+        <div class="progress-container" id="progressContainer">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+        
+        <div class="result-container" id="resultContainer">
+            <h2>Hasil Upload</h2>
+            <div class="thumbnail">
+                <img id="compressedImage" src="" alt="Thumbnail">
+                <p>Thumbnail 150px</p>
+            </div>
+            
+            <div class="metadata">
+                <p><strong>Nama File:</strong> <span id="fileName"></span></p>
+                <p><strong>Ukuran Asli:</strong> <span id="originalSize"></span> KB</p>
+                <p><strong>Ukuran Kompresi:</strong> <span id="compressedSize"></span> KB</p>
+                <p><strong>Persentase Pengurangan:</strong> <span id="reduction"></span>%</p>
+                <p>
+                    <a href="#" id="originalLink" class="btn">Download Asli</a>
+                    <a href="#" id="compressedLink" class="btn">Download Kompresi</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Elemen DOM
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBar = document.getElementById('progressBar');
+        const resultContainer = document.getElementById('resultContainer');
+        const compressedImage = document.getElementById('compressedImage');
+        const fileName = document.getElementById('fileName');
+        const originalSize = document.getElementById('originalSize');
+        const compressedSize = document.getElementById('compressedSize');
+        const reduction = document.getElementById('reduction');
+        const originalLink = document.getElementById('originalLink');
+        const compressedLink = document.getElementById('compressedLink');
+
+        // Event untuk drag and drop
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, preventDefaults, false);
+            document.body.addEventListener(eventName, preventDefaults, false);
+        });
+        
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        ['dragenter', 'dragover'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, highlight, false);
+        });
+        
+        ['dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, unhighlight, false);
+        });
+        
+        function highlight() {
+            uploadArea.classList.add('dragover');
+        }
+        
+        function unhighlight() {
+            uploadArea.classList.remove('dragover');
+        }
+        
+        uploadArea.addEventListener('drop', handleDrop, false);
+        
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles(files);
+        }
+        
+        // Klik area upload
+        uploadArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+        
+        // File input change
+        fileInput.addEventListener('change', () => {
+            handleFiles(fileInput.files);
+        });
+        
+        // Proses file
+        function handleFiles(files) {
+            if (!files.length) return;
+            
+            const file = files[0];
+            
+            // Validasi file
+            if (!file.type.match('image.*')) {
+                alert('Hanya file gambar yang diizinkan!');
+                return;
+            }
+            
+            if (file.size > 5 * 1024 * 1024) {
+                alert('Ukuran file maksimal 5MB!');
+                return;
+            }
+            
+            // Tampilkan progress bar
+            progressContainer.style.display = 'block';
+            progressBar.style.width = '0%';
+            resultContainer.style.display = 'none';
+            
+            // Kirim file ke server
+            uploadFile(file);
+        }
+        
+        function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('image', file);
+            
+            const xhr = new XMLHttpRequest();
+            
+            // Progress upload
+            xhr.upload.addEventListener('progress', function(e) {
+                if (e.lengthComputable) {
+                    const percent = (e.loaded / e.total) * 100;
+                    progressBar.style.width = `${percent}%`;
+                }
+            });
+            
+            xhr.addEventListener('load', function() {
+                if (xhr.status === 200) {
+                    const response = JSON.parse(xhr.responseText);
+                    if (response.success) {
+                        // Tampilkan hasil
+                        showResult(response);
+                    } else {
+                        alert('Upload gagal: ' + (response.error || 'Unknown error'));
+                    }
+                } else {
+                    alert('Terjadi kesalahan pada server.');
+                }
+                
+                progressContainer.style.display = 'none';
+            });
+            
+            xhr.open('POST', '/upload/');
+            xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+            xhr.send(formData);
+        }
+        
+        function showResult(data) {
+            // Hitung pengurangan ukuran
+            const reductionPercent = ((data.original_size - data.compressed_size) / data.original_size * 100).toFixed(1);
+            
+            // Format ukuran file
+            const formatSize = bytes => (bytes / 1024).toFixed(2);
+            
+            // Update UI
+            fileName.textContent = data.original_name;
+            originalSize.textContent = formatSize(data.original_size);
+            compressedSize.textContent = formatSize(data.compressed_size);
+            reduction.textContent = reductionPercent;
+            
+            // Dapatkan URL gambar melalui signed URL
+            fetch(`/image/${data.signed_compressed}/`)
+                .then(response => response.json())
+                .then(imgData => {
+                    compressedImage.src = imgData.url;
+                    resultContainer.style.display = 'block';
+                    
+                    // Set link download
+                    fetch(`/image/${data.signed_original}/`)
+                        .then(response => response.json())
+                        .then(origData => {
+                            originalLink.href = origData.url;
+                            compressedLink.href = imgData.url;
+                        });
+                });
+        }
+        
+        // Fungsi untuk mendapatkan CSRF token
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    </script>
+</body>
+</html>
