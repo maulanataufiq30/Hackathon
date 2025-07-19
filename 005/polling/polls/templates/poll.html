@@ -1,0 +1,51 @@
+<h1>{{ poll.question }}</h1>
+<div id="chartContainer">
+    <canvas id="pollChart"></canvas>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const ctx = document.getElementById('pollChart').getContext('2d');
+    const pollId = "{{ poll.id }}";
+    let chart;
+
+    // Setup SSE Connection
+    const eventSource = new EventSource(`/sse/${pollId}/`);
+
+    eventSource.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        updateChart(data);
+    };
+
+    function updateChart(data) {
+        if (chart) chart.destroy();
+        
+        chart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.options.map(opt => opt.text),
+                datasets: [{
+                    label: 'Votes',
+                    data: data.options.map(opt => opt.votes),
+                    backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                }]
+            },
+            options: { responsive: true }
+        });
+    }
+
+    // Initial chart load
+    fetch(`/sse/${pollId}/`)
+        .then(response => response.json())
+        .then(updateChart);
+
+    // Voting functionality
+    document.addEventListener('click', async (e) => {
+        if (e.target.classList.contains('vote-btn')) {
+            const optionId = e.target.dataset.optionId;
+            await fetch(`/vote/${optionId}/`, { method: 'POST' });
+        }
+    });
+});
+</script>

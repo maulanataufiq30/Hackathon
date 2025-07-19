@@ -1,0 +1,419 @@
+{% extends 'polls/base.html' %}
+
+{% block title %}{{ poll.title }} - Aplikasi Polling{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Poll Info -->
+    <div class="col-12">
+        <div class="card mb-4 fade-in">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h1 class="card-title text-primary mb-3">
+                            <i class="fas fa-poll me-2"></i>
+                            {{ poll.title }}
+                        </h1>
+                        
+                        {% if poll.description %}
+                        <p class="card-text text-muted mb-3">{{ poll.description }}</p>
+                        {% endif %}
+                        
+                        <div class="d-flex flex-wrap gap-3">
+                            <span class="badge bg-primary fs-6">
+                                <i class="fas fa-vote-yea me-1"></i>
+                                <span id="totalVotes">{{ poll.total_votes }}</span> Vote
+                            </span>
+                            <span class="badge bg-info fs-6">
+                                <i class="fas fa-list me-1"></i>
+                                {{ poll.options.count }} Opsi
+                            </span>
+                            <span class="badge bg-success fs-6">
+                                <i class="fas fa-clock me-1"></i>
+                                {{ poll.created_at|timesince }} lalu
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4 text-md-end mt-3 mt-md-0">
+                        <button class="btn btn-outline-primary" onclick="shareLink()">
+                            <i class="fas fa-share-alt me-2"></i>
+                            Bagikan Link
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Voting Section -->
+    <div class="col-lg-6">
+        <div class="card mb-4 fade-in">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">
+                    <i class="fas fa-vote-yea me-2"></i>
+                    {% if has_voted %}Terima Kasih Sudah Vote!{% else %}Pilih Opsi Anda{% endif %}
+                </h4>
+            </div>
+            
+            <div class="card-body">
+                {% if has_voted %}
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle me-2"></i>
+                        Anda sudah memberikan vote untuk poll ini dari IP: <code>{{ user_ip }}</code>
+                    </div>
+                    
+                    <div class="text-center">
+                        <i class="fas fa-thumbs-up fa-3x text-success mb-3"></i>
+                        <h5>Vote Anda Telah Tercatat!</h5>
+                        <p class="text-muted">Lihat hasil real-time di chart sebelah kanan.</p>
+                    </div>
+                {% else %}
+                    <form id="voteForm">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <p class="text-muted mb-3">Pilih salah satu opsi di bawah ini:</p>
+                            
+                            {% for option in poll.options.all %}
+                            <div class="poll-option" data-option-id="{{ option.id }}">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="option" 
+                                           value="{{ option.id }}" id="option{{ option.id }}">
+                                    <label class="form-check-label w-100" for="option{{ option.id }}">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span>{{ option.text }}</span>
+                                            <span class="badge bg-secondary" id="count-{{ option.id }}">
+                                                {{ option.vote_count }}
+                                            </span>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-success btn-lg" id="voteBtn">
+                                <i class="fas fa-paper-plane me-2"></i>
+                                Kirim Vote
+                            </button>
+                        </div>
+                    </form>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Share Link Card -->
+        <div class="card fade-in">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-link me-2"></i>
+                    Link Poll
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="share-link" id="shareLink">
+                    {{ request.build_absolute_uri }}
+                </div>
+                <button class="btn btn-outline-primary btn-sm mt-2" onclick="copyLink()">
+                    <i class="fas fa-copy me-1"></i>
+                    Salin Link
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Chart Section -->
+    <div class="col-lg-6">
+        <div class="card fade-in">
+            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">
+                    <i class="fas fa-chart-pie me-2"></i>
+                    Hasil Real-time
+                </h4>
+                <span class="badge bg-light text-dark pulse" id="liveIndicator">
+                    <i class="fas fa-circle text-success me-1"></i>
+                    LIVE
+                </span>
+            </div>
+            
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="pollChart"></canvas>
+                </div>
+                
+                <!-- Results Table -->
+                <div class="table-responsive mt-3">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Opsi</th>
+                                <th class="text-center">Vote</th>
+                                <th class="text-center">%</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsTable">
+                            {% for option in poll.options.all %}
+                            <tr id="row-{{ option.id }}">
+                                <td>{{ option.text }}</td>
+                                <td class="text-center" id="votes-{{ option.id }}">{{ option.vote_count }}</td>
+                                <td class="text-center" id="percent-{{ option.id }}">{{ option.vote_percentage }}%</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Success Modal -->
+<div class="modal fade" id="successModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-check-circle me-2"></i>
+                    Vote Berhasil!
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <i class="fas fa-thumbs-up fa-3x text-success mb-3"></i>
+                <h4>Terima Kasih!</h4>
+                <p>Vote Anda telah berhasil disimpan dan akan muncul di chart real-time.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-success" data-bs-dismiss="modal">OK</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let pollChart;
+let eventSource;
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize chart
+    initChart();
+    
+    // Start SSE connection
+    startSSE();
+    
+    // Handle voting form
+    const voteForm = document.getElementById('voteForm');
+    if (voteForm) {
+        voteForm.addEventListener('submit', handleVote);
+    }
+});
+
+function initChart() {
+    const ctx = document.getElementById('pollChart').getContext('2d');
+    
+    // Get initial data
+    const options = [
+        {% for option in poll.options.all %}
+        {
+            label: '{{ option.text|escapejs }}',
+            votes: {{ option.vote_count }},
+            percentage: {{ option.vote_percentage }}
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+    
+    const colors = [
+        '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', 
+        '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF'
+    ];
+    
+    pollChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: options.map(opt => opt.label),
+            datasets: [{
+                data: options.map(opt => opt.votes),
+                backgroundColor: colors.slice(0, options.length),
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 20,
+                        usePointStyle: true
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.parsed;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                            return `${label}: ${value} vote (${percentage}%)`;
+                        }
+                    }
+                }
+            },
+            animation: {
+                animateRotate: true,
+                animateScale: true
+            }
+        }
+    });
+}
+
+function startSSE() {
+    eventSource = new EventSource('{% url "polls:stream" poll.id %}');
+    
+    eventSource.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+        updateChart(data);
+        updateTable(data);
+        updateStats(data);
+    };
+    
+    eventSource.onerror = function(event) {
+        console.error('SSE error:', event);
+        // Reconnect after 5 seconds
+        setTimeout(() => {
+            if (eventSource.readyState === EventSource.CLOSED) {
+                startSSE();
+            }
+        }, 5000);
+    };
+}
+
+function updateChart(data) {
+    if (pollChart) {
+        pollChart.data.datasets[0].data = data.results.map(result => result.votes);
+        pollChart.update('none'); // No animation for real-time updates
+    }
+}
+
+function updateTable(data) {
+    data.results.forEach(result => {
+        const votesCell = document.getElementById(`votes-${result.id}`);
+        const percentCell = document.getElementById(`percent-${result.id}`);
+        const countBadge = document.getElementById(`count-${result.id}`);
+        
+        if (votesCell) votesCell.textContent = result.votes;
+        if (percentCell) percentCell.textContent = result.percentage + '%';
+        if (countBadge) countBadge.textContent = result.votes;
+    });
+}
+
+function updateStats(data) {
+    const totalVotesElement = document.getElementById('totalVotes');
+    if (totalVotesElement) {
+        totalVotesElement.textContent = data.total_votes;
+    }
+}
+
+function handleVote(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target);
+    const optionId = formData.get('option');
+    
+    if (!optionId) {
+        alert('Silakan pilih salah satu opsi!');
+        return;
+    }
+    
+    const voteBtn = document.getElementById('voteBtn');
+    voteBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Mengirim...';
+    voteBtn.disabled = true;
+    
+    fetch('{% url "polls:vote_api" poll.id %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify({
+            option_id: optionId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show success modal
+            const modal = new bootstrap.Modal(document.getElementById('successModal'));
+            modal.show();
+            
+            // Reload page after modal is closed
+            modal._element.addEventListener('hidden.bs.modal', () => {
+                location.reload();
+            });
+        } else {
+            alert(data.error || 'Terjadi kesalahan saat voting');
+            voteBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Kirim Vote';
+            voteBtn.disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Terjadi kesalahan jaringan');
+        voteBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Kirim Vote';
+        voteBtn.disabled = false;
+    });
+}
+
+function shareLink() {
+    if (navigator.share) {
+        navigator.share({
+            title: '{{ poll.title|escapejs }}',
+            text: 'Vote di poll ini: {{ poll.title|escapejs }}',
+            url: window.location.href
+        });
+    } else {
+        copyLink();
+    }
+}
+
+function copyLink() {
+    const linkElement = document.getElementById('shareLink');
+    const text = linkElement.textContent;
+    
+    navigator.clipboard.writeText(text).then(() => {
+        // Show temporary success message
+        const originalText = linkElement.innerHTML;
+        linkElement.innerHTML = '<i class="fas fa-check text-success me-2"></i>Link berhasil disalin!';
+        
+        setTimeout(() => {
+            linkElement.innerHTML = originalText;
+        }, 2000);
+    }).catch(() => {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        
+        alert('Link berhasil disalin!');
+    });
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', function() {
+    if (eventSource) {
+        eventSource.close();
+    }
+});
+</script>
+{% endblock %}
+

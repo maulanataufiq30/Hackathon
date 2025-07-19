@@ -1,0 +1,162 @@
+{% extends 'polls/base.html' %}
+
+{% block title %}Beranda - Aplikasi Polling{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <!-- Hero Section -->
+        <div class="card mb-4 fade-in">
+            <div class="card-body text-center py-5">
+                <h1 class="display-4 fw-bold text-primary mb-3">
+                    <i class="fas fa-poll me-3"></i>
+                    Selamat Datang di Polling App
+                </h1>
+                <p class="lead text-muted mb-4">
+                    Buat polling interaktif dengan chart real-time dan bagikan dengan mudah!
+                </p>
+                <a href="{% url 'polls:create' %}" class="btn btn-primary btn-lg">
+                    <i class="fas fa-plus me-2"></i>
+                    Buat Poll Baru
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <h2 class="mb-4 text-white">
+            <i class="fas fa-fire me-2"></i>
+            Poll Terbaru
+        </h2>
+    </div>
+</div>
+
+<div class="row">
+    {% if polls %}
+        {% for poll in polls %}
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card h-100 fade-in">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-question-circle text-primary me-2"></i>
+                        {{ poll.title }}
+                    </h5>
+                    
+                    {% if poll.description %}
+                    <p class="card-text text-muted">{{ poll.description|truncatewords:15 }}</p>
+                    {% endif %}
+                    
+                    <div class="stats-card mb-3">
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <h4 class="mb-0">{{ poll.total_votes }}</h4>
+                                <small>Total Vote</small>
+                            </div>
+                            <div class="col-6">
+                                <h4 class="mb-0">{{ poll.options.count }}</h4>
+                                <small>Opsi</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid">
+                        <a href="{% url 'polls:detail' poll.id %}" class="btn btn-primary">
+                            <i class="fas fa-vote-yea me-2"></i>
+                            Lihat & Vote
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="card-footer bg-transparent">
+                    <small class="text-muted">
+                        <i class="fas fa-clock me-1"></i>
+                        Dibuat {{ poll.created_at|timesince }} yang lalu
+                    </small>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="col-12">
+            <div class="card text-center">
+                <div class="card-body py-5">
+                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                    <h3 class="text-muted">Belum Ada Poll</h3>
+                    <p class="text-muted mb-4">Jadilah yang pertama membuat poll!</p>
+                    <a href="{% url 'polls:create' %}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>
+                        Buat Poll Pertama
+                    </a>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Features Section -->
+<div class="row mt-5">
+    <div class="col-12">
+        <h2 class="mb-4 text-white text-center">
+            <i class="fas fa-star me-2"></i>
+            Fitur Unggulan
+        </h2>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4 mb-4">
+        <div class="card text-center h-100">
+            <div class="card-body">
+                <i class="fas fa-chart-pie fa-3x text-primary mb-3"></i>
+                <h5 class="card-title">Chart Real-time</h5>
+                <p class="card-text">Lihat hasil polling dalam bentuk chart yang update secara real-time menggunakan Server-Sent Events.</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card text-center h-100">
+            <div class="card-body">
+                <i class="fas fa-share-alt fa-3x text-success mb-3"></i>
+                <h5 class="card-title">Mudah Dibagikan</h5>
+                <p class="card-text">Setiap poll memiliki link unik yang dapat dibagikan ke siapa saja untuk ikut berpartisipasi.</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card text-center h-100">
+            <div class="card-body">
+                <i class="fas fa-database fa-3x text-warning mb-3"></i>
+                <h5 class="card-title">Database Optimized</h5>
+                <p class="card-text">Menggunakan PostgreSQL dengan composite index untuk performa query yang optimal.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Add some interactive animations
+    document.addEventListener('DOMContentLoaded', function() {
+        // Animate cards on scroll
+        const cards = document.querySelectorAll('.card');
+        
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('fade-in');
+                }
+            });
+        });
+        
+        cards.forEach(card => {
+            observer.observe(card);
+        });
+    });
+</script>
+{% endblock %}
+

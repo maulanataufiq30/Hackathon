@@ -1,0 +1,38 @@
+<form id="pollForm">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <div id="options">
+        <input type="text" name="options" placeholder="Option 1" required>
+        <input type="text" name="options" placeholder="Option 2" required>
+    </div>
+    <button type="button" id="addOption">+ Add Option</button>
+    <button type="submit">Create Poll</button>
+</form>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('pollForm');
+    const optionsDiv = document.getElementById('options');
+    let optionCount = 2;
+
+    document.getElementById('addOption').addEventListener('click', () => {
+        optionCount++;
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.name = 'options';
+        input.placeholder = `Option ${optionCount}`;
+        optionsDiv.appendChild(input);
+    });
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(form);
+        const response = await fetch('/create/', {
+            method: 'POST',
+            body: formData,
+        });
+        const data = await response.json();
+        window.location.href = `/poll/${data.poll_id}/`;
+    });
+});
+</script>
